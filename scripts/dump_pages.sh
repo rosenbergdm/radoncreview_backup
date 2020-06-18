@@ -8,13 +8,13 @@
 #
 
 LOGFILE=/var/log/radoncreview_dump_pages.log
-PAGE_DB="$HOME/src/radoncreview/page_dumps"
+SCRIPTFILE=$(greadlink -f $0)
+SCRIPTDIR="$(dirname $SCRIPTFILE)"
+PAGE_DB="/Volumes/LaptopBackup2/RadOncReviewBackups"
 tmplogfile="$(mktemp -t ror.dp)"
-SOURCE_FILE="$PAGE_DB/source_files.txt"
-FORMATS=( doc )
-# TODO: Change to below... but tonight the pdfs are taking too long, they should be backed up 
-#       but not stored in git
-# FORMATS=( doc pdf )
+SOURCE_FILE="$SCRIPTDIR/../source_files.txt"
+# FORMATS=( doc )
+FORMATS=( doc pdf )
 
 
 
@@ -42,21 +42,18 @@ function export_file() {
   if [ "$format" == "doc" ]; then
     format=docx
   fi
-  local tgtfile="$PAGE_DB/$2.$format"
+  local tgtfile="$2.$format"
   wget "$srcfile" -O "$tgtfile"
-  # if [ "$format" == "docx" ]; then
-  #   unzip_docx "$tgtfile"
-  #   # rm "$tgtfile"
-  # fi
 }
 
 function script_main() {
-  cd "$PAGE_DB"
+  datedir="$PAGE_DB/$(date +%Y-%m-%d)"
+  mkdir "$datedir"
   while IFS="" read -r line || [[ -n "$line" ]]; do
     if $(echo $line | grep -v '^\s*#' > /dev/null); then
       for fmt in "${FORMATS[@]}"; do
         srcfile=$(echo $line | cut -f1 -d \|)
-        tgtfile=$(echo $line | cut -f2 -d \|)
+        tgtfile="$datedir/$(echo $line | cut -f2 -d \|)"
         export_file "$srcfile" "$tgtfile" "$fmt" > "$tmplogfile" && \
           echo -e "$(date): '$srcfile' backed up to '$tgtfile' successfully'" | tee -a $LOGFILE || \
           echo -e "$(date): '$srcfile' FAILED to back up to '$tgtfile'" | tee -a $LOGFILE && ((error_count+=1))
