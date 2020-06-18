@@ -48,15 +48,20 @@ function export_file() {
 
 function script_main() {
   datedir="$PAGE_DB/$(date +%Y-%m-%d)"
-  mkdir "$datedir"
+  mkdir "$datedir" 2> /dev/null || echo "Directory $datedir already exists"
   while IFS="" read -r line || [[ -n "$line" ]]; do
     if $(echo $line | grep -v '^\s*#' > /dev/null); then
       for fmt in "${FORMATS[@]}"; do
+        local iserror=0
         srcfile=$(echo $line | cut -f1 -d \|)
         tgtfile="$datedir/$(echo $line | cut -f2 -d \|)"
         export_file "$srcfile" "$tgtfile" "$fmt" > "$tmplogfile" && \
           echo -e "$(date): '$srcfile' backed up to '$tgtfile' successfully'" | tee -a $LOGFILE || \
-          echo -e "$(date): '$srcfile' FAILED to back up to '$tgtfile'" | tee -a $LOGFILE && ((error_count+=1))
+          ((iserror+=1)) 
+        if [ $iserror -eq 1 ]; then
+          ((error_count+=1))
+          echo -e "$(date): '$srcfile' FAILED to back up to '$tgtfile'" | tee -a $LOGFILE
+        fi
       done
     fi
   done < <( cat "$SOURCE_FILE" | sed '/^\s*$/d')
