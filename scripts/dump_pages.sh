@@ -7,8 +7,18 @@
 # Distributed under terms of the MIT license.
 #
 
+if [ -x /usr/local/bin/greadlink ]; then
+  READLINK=/usr/local/bin/greadlink
+else
+  READLINK=$(which readlink)
+fi
+if [ -x /usr/local/bin/wget ]; then
+  WGET=/usr/local/bin/wget
+else
+  WGET=$(which wget)
+fi
 LOGFILE=/var/log/radoncreview_dump_pages.log
-SCRIPTFILE=$(greadlink -f $0)
+SCRIPTFILE=$($READLINK -f $0)
 SCRIPTDIR="$(dirname $SCRIPTFILE)"
 PAGE_DB="/Volumes/LaptopBackup2/RadOncReviewBackups"
 tmplogfile="$(mktemp -t ror.dp)"
@@ -43,7 +53,7 @@ function export_file() {
     format=docx
   fi
   local tgtfile="$2.$format"
-  wget "$srcfile" -O "$tgtfile"
+  $WGET -q "$srcfile" -O "$tgtfile"
 }
 
 function script_main() {
@@ -55,12 +65,12 @@ function script_main() {
         local iserror=0
         srcfile=$(echo $line | cut -f1 -d \|)
         tgtfile="$datedir/$(echo $line | cut -f2 -d \|)"
-        export_file "$srcfile" "$tgtfile" "$fmt" > "$tmplogfile" && \
-          echo -e "$(date): '$srcfile' backed up to '$tgtfile' successfully'" | tee -a $LOGFILE || \
+        export_file "$srcfile" "$tgtfile" "$fmt" 2>&1 > "$tmplogfile" && \
+          echo -e "$(date): '$srcfile' backed up to '$tgtfile.$fmt' successfully'" | tee -a $LOGFILE || \
           ((iserror+=1)) 
         if [ $iserror -eq 1 ]; then
           ((error_count+=1))
-          echo -e "$(date): '$srcfile' FAILED to back up to '$tgtfile'" | tee -a $LOGFILE
+          echo -e "$(date): '$srcfile' FAILED to back up to '$tgtfile.$fmt'" | tee -a $LOGFILE
         fi
       done
     fi
@@ -87,6 +97,7 @@ if [ $error_count -eq 0 ]; then
   exit 0
 else
   echo "$(date): Not all files backed up successfully, see log at $tmplogfile" | tee -a $LOGFILE
+  echo "error_count = $error_count"
   trap - EXIT
   exit $error_count
 fi
