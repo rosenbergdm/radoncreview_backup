@@ -27,9 +27,12 @@ main() {
   while IFS="" read -r line || [[ -n "$line" ]]; do
     fname="$(echo "$line" | awk '{print $1}')"
     uid="$(echo "$line" | awk '{print $3}')"
+    $PRINTF "*********************\n%s\n" "Exporting $fname from $uid"
     export_file "$uid" "$fname"
+    sleep 10
   done < "$SOURCE_FILE"
 }
 
 main >$LOGFILE 2>&1
+
 
