@@ -20,7 +20,8 @@ fi
 LOGFILE=/var/log/radoncreview_dump_pages.log
 SCRIPTFILE=$($READLINK -f $0)
 SCRIPTDIR="$(dirname $SCRIPTFILE)"
-PAGE_DB="/Volumes/LaptopBackup2/RadOncReviewBackups"
+# PAGE_DB="/Volumes/LaptopBackup2/RadOncReviewBackups"
+PAGE_DB=/opt/ror/backups
 tmplogfile="$(mktemp -t ror.dp)"
 SOURCE_FILE="$SCRIPTDIR/../source_files.txt"
 # FORMATS=( doc )
@@ -53,6 +54,7 @@ function export_file() {
     format=docx
   fi
   local tgtfile="$2.$format"
+  echo $WGET -q "$srcfile" -O "$tgtfile"
   $WGET -q "$srcfile" -O "$tgtfile"
 }
 
@@ -65,6 +67,7 @@ function script_main() {
         local iserror=0
         srcfile=$(echo $line | cut -f1 -d \|)
         tgtfile="$datedir/$(echo $line | cut -f2 -d \|)"
+        echo "downloading $srcfile to $tgtfile"
         export_file "$srcfile" "$tgtfile" "$fmt" 2>&1 > "$tmplogfile" && \
           echo -e "$(date): '$srcfile' backed up to '$tgtfile.$fmt' successfully'" | tee -a $LOGFILE || \
           ((iserror+=1)) 
