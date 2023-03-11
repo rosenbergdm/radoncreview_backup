@@ -1,4 +1,4 @@
-#! /usr/local/bin/bash
+#!/opt/homebrew/bin/bash
 #
 # dump_pages.sh
 # Copyright (C) 2020 David Rosenberg <dmr@davidrosenberg.me>
@@ -6,8 +6,34 @@
 #   multiple formats.  Suitable for use as a cron job
 # Distributed under terms of the MIT license.
 #
+# Usage: dump_pages.sh [-vhq] [--debug] [--logfile=LOGFILE] [--source=SOURCE_FILE]
+#        dump_pages.sh [-vhq] [--debug] [--logfile=LOGFILE] --format=FORMAT --target=TARGETFILE URL
+#
+#
+#
+# Arguments:
+#   FILE                     Url to download and dump a single page from (for example, 
+#                             https://docs.google.com/document/d/1-mwiAYV0BZnxdSKLIgU19wofB3p-YqtPOUtPFg5AFMs/edit)
+#   
+# Options:
+#   -h --help                display usage
+#   -v --verbose             verbose mode
+#   -q --quiet               quiet mode
+#   --debug                  debug this script
+#   --logfile=LOGFILE        log output to this file [default: /var/log/radoncreview_dump_pages.log]
+#   --format=FORMAT          format to dump page to either docx or pdf [default: docx]
+#   --target=TARGETFILE      file to write the output dumped page to
+#   --source=SOURCE_FILE     List of urls and corresponding names to download en masse [default: ./source_files.txt]
+#
 
-DUMP_PAGES_DEBUG=${DUMP_PAGES_DEBUG-0}
+error_count=0
+source "$(which docopts.sh)" --auto "$@"
+
+[[ ${ARGS[--debug]} == true ]] && docopt_print_ARGS
+if [[ "${ARGS[--verbose]}" == true ]]; then
+  DEBUG_SCRIPT=${DEBUG_SCRIPT:-1}
+fi
+
 if [ -x /usr/local/bin/greadlink ]; then
   READLINK=/usr/local/bin/greadlink
 else
@@ -70,34 +96,23 @@ function script_main() {
         iserror=0
         srcfile=$(echo "$line" | cut -f1 -d \|)
         tgtfile="$datedir/$(echo "$line" | cut -f2 -d \|)"
-        [ "$DUMP_PAGES_DEBUG" -gt 0 ] && echo "downloading $srcfile to $tgtfile"
+        [[ ${ARGS[--debug]} == true ]] && printf "Downloading %s to %s" "$srcfile" "$tgtfile"
         export_file "$srcfile" "$tgtfile" "$fmt" > "$tmplogfile" 2>&1
         if [ $? -eq 0 ];  then
-          echo -e "$(date): '$srcfile' backed up to '$tgtfile.$fmt' successfully'" | tee -a $LOGFILE
+          printf "$(date): '%s' backed up to '%s.%s' successfully" "$srcfile" "$tgtfile" "$fmt" | tee -a $LOGFILE
         else
           ((iserror+=1)) 
         fi
         if [ $iserror -eq 1 ]; then
           ((error_count+=1))
-          echo -e "$(date): '$srcfile' FAILED to back up to '$tgtfile.$fmt'" | tee -a $LOGFILE
+          printf "$(date): '%s' FAILED to be backed up to '%s.%s'" "$srcfile" "$tgtfile" "$fmt" | tee -a $LOGFILE
         fi
       done
     fi
   done < <( sed '/^\s*$/d' < "$SOURCE_FILE" )
 }
 
-usage() {
-  echo "USAGE: $0"
-  echo "  Using the list of files in $SOURCE_FILE, backup all gdocs files"
-  #TODO: Better documentation
-}
 
-if [[ "$1" == "-h" ]] || [[ "$1" = "-help" ]] || [[ "$1" == "--help" ]]; then
-  usage
-  exit 255
-fi
-
-error_count=0
 script_main
 if [ $error_count -eq 0 ]; then
   echo "$(date): All files backed up successfully" | tee -a $LOGFILE
