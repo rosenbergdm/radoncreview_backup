@@ -57,7 +57,7 @@ function export_file() {
   fi
   local tgtfile="$2.$format"
   echo "$WGET" -q "$srcfile" -O "$tgtfile"
-  $WGET -q "$srcfile" -O "$tgtfile"
+  $WGET "$srcfile" -O "$tgtfile"
 }
 
 function script_main() {
