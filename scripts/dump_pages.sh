@@ -7,6 +7,7 @@
 # Distributed under terms of the MIT license.
 #
 
+DUMP_PAGES_DEBUG=${DUMP_PAGES_DEBUG-0}
 if [ -x /usr/local/bin/greadlink ]; then
   READLINK=/usr/local/bin/greadlink
 else
@@ -18,8 +19,8 @@ else
   WGET=$(which wget)
 fi
 LOGFILE=/var/log/radoncreview_dump_pages.log
-SCRIPTFILE=$($READLINK -f $0)
-SCRIPTDIR="$(dirname $SCRIPTFILE)"
+SCRIPTFILE=$($READLINK -f "$0")
+SCRIPTDIR="$(dirname "$SCRIPTFILE")"
 # PAGE_DB="/Volumes/LaptopBackup2/RadOncReviewBackups"
 PAGE_DB=/opt/ror/backups
 tmplogfile="$(mktemp -t ror.dp)"
@@ -35,17 +36,18 @@ function cleanup() {
 }
 trap cleanup EXIT
 
-function unzip_docx() {
-  local srcfile="$(greadlink -f "${1}")"
-  local tgtdir="${srcfile//.docx/_docx}"
-  if [ -d "$tgtdir" ]; then
-    rm -r "$tgtdir"
-  fi
-  mkdir -p "$tgtdir"
-  pushd "$tgtdir"
-  unzip "$srcfile"
-  popd
-}
+# function unzip_docx() {
+#   local srcfile tgtdir
+#   srcfile="$(greadlink -f "${1}")"
+#   tgtdir="${srcfile//.docx/_docx}"
+#   if [ -d "$tgtdir" ]; then
+#     rm -r "$tgtdir"
+#   fi
+#   mkdir -p "$tgtdir"
+#   pushd "$tgtdir"
+#   unzip "$srcfile"
+#   popd
+# }
 
 function export_file() {
   local format="${3:-doc}"
@@ -54,7 +56,7 @@ function export_file() {
     format=docx
   fi
   local tgtfile="$2.$format"
-  echo $WGET -q "$srcfile" -O "$tgtfile"
+  echo "$WGET" -q "$srcfile" -O "$tgtfile"
   $WGET -q "$srcfile" -O "$tgtfile"
 }
 
@@ -62,22 +64,26 @@ function script_main() {
   datedir="$PAGE_DB/$(date +%Y-%m-%d)"
   mkdir "$datedir" 2> /dev/null || echo "Directory $datedir already exists"
   while IFS="" read -r line || [[ -n "$line" ]]; do
-    if $(echo $line | grep -v '^\s*#' > /dev/null); then
+    if echo "$line" | grep -v '^\s*#' > /dev/null; then
       for fmt in "${FORMATS[@]}"; do
-        local iserror=0
-        srcfile=$(echo $line | cut -f1 -d \|)
-        tgtfile="$datedir/$(echo $line | cut -f2 -d \|)"
-        echo "downloading $srcfile to $tgtfile"
-        export_file "$srcfile" "$tgtfile" "$fmt" 2>&1 > "$tmplogfile" && \
-          echo -e "$(date): '$srcfile' backed up to '$tgtfile.$fmt' successfully'" | tee -a $LOGFILE || \
+        local iserror
+        iserror=0
+        srcfile=$(echo "$line" | cut -f1 -d \|)
+        tgtfile="$datedir/$(echo "$line" | cut -f2 -d \|)"
+        [ "$DUMP_PAGES_DEBUG" -gt 0 ] && echo "downloading $srcfile to $tgtfile"
+        export_file "$srcfile" "$tgtfile" "$fmt" > "$tmplogfile" 2>&1
+        if [ $? -eq 0 ];  then
+          echo -e "$(date): '$srcfile' backed up to '$tgtfile.$fmt' successfully'" | tee -a $LOGFILE
+        else
           ((iserror+=1)) 
+        fi
         if [ $iserror -eq 1 ]; then
           ((error_count+=1))
           echo -e "$(date): '$srcfile' FAILED to back up to '$tgtfile.$fmt'" | tee -a $LOGFILE
         fi
       done
     fi
-  done < <( cat "$SOURCE_FILE" | sed '/^\s*$/d')
+  done < <( sed '/^\s*$/d' < "$SOURCE_FILE" )
 }
 
 usage() {
