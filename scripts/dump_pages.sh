@@ -96,16 +96,15 @@ function script_main() {
         iserror=0
         srcfile=$(echo "$line" | cut -f1 -d \|)
         tgtfile="$datedir/$(echo "$line" | cut -f2 -d \|)"
-        [[ ${ARGS[--debug]} == true ]] && printf "Downloading %s to %s" "$srcfile" "$tgtfile"
-        export_file "$srcfile" "$tgtfile" "$fmt" > "$tmplogfile" 2>&1
-        if [ $? -eq 0 ];  then
-          printf "$(date): '%s' backed up to '%s.%s' successfully" "$srcfile" "$tgtfile" "$fmt" | tee -a $LOGFILE
+        [[ ${ARGS[--debug]} == true ]] && printf "Downloading %s to %s\n" "$srcfile" "$tgtfile"
+        if export_file "$srcfile" "$tgtfile" "$fmt" > "$tmplogfile" 2>&1;  then
+          printf "$(date): '%s' backed up to '%s.%s' successfully\n" "$srcfile" "$tgtfile" "$fmt" | tee -a $LOGFILE
         else
           ((iserror+=1)) 
         fi
         if [ $iserror -eq 1 ]; then
           ((error_count+=1))
-          printf "$(date): '%s' FAILED to be backed up to '%s.%s'" "$srcfile" "$tgtfile" "$fmt" | tee -a $LOGFILE
+          printf "$(date): '%s' FAILED to be backed up to '%s.%s'\n" "$srcfile" "$tgtfile" "$fmt" | tee -a $LOGFILE
         fi
       done
     fi
